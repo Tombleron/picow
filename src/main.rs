@@ -2,13 +2,14 @@
 #![no_main]
 use cyw43::Control;
 use cyw43_pio::PioSpi;
-use defmt::unwrap;
+use defmt::{info, unwrap};
 use embassy_executor::Spawner;
 use embassy_rp::gpio::Level;
-use embassy_rp::peripherals::{DMA_CH0, PIO0};
+use embassy_rp::peripherals::{DMA_CH0, PIO0, PWM_SLICE4};
 use embassy_rp::pio::{InterruptHandler, Pio};
-use embassy_rp::Peripherals;
+use embassy_rp::pwm::Pwm;
 use embassy_rp::{bind_interrupts, gpio::Output};
+use embassy_rp::{pwm, Peripherals};
 use embassy_time::{Duration, Timer};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
@@ -66,19 +67,30 @@ async fn initialize(spawner: Spawner, p: Peripherals) -> Control<'static> {
     control
 }
 
+// Initialize pwm on the Raspberry Pi Pico
+async fn pwm_init(peripherals: Peripherals) -> Pwm<'static> {
+    let mut config = pwm::Config::default();
+    config.top = 0x8000;
+    config.compare_b = 0x4000;
+    Pwm::new_output_b(peripherals.PWM_SLICE1, peripherals.PIN_19, config)
+}
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     // Initializes the Raspberry Pi Pico's hardware peripherals (like GPIO, PIO, etc.)
-    let p = embassy_rp::init(Default::default());
+    let peripherals = embassy_rp::init(Default::default());
 
-    let mut control = initialize(spawner, p).await;
+    // let mut control = initialize(spawner, peripherals).await;
 
     let delay = Duration::from_secs(5);
     let mut led_status = false;
 
+    let mut pwm = pwm_init(peripherals).await;
+
     loop {
-        control.gpio_set(0, led_status).await;
-        Timer::after(delay).await;
-        led_status = !led_status;
+        info!("anime{}", pwm.wrapped());
+        // control.gpio_set(0, led_status).await;
+        // Timer::after(delay).await;
+        // led_status = !led_status;
     }
 }
