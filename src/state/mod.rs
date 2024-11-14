@@ -1,18 +1,15 @@
 pub mod calibration;
 pub mod events;
-mod operation;
+pub mod operation;
 pub mod state_sender;
 
 use core::fmt::Display;
 
-use calibration::CalibrationCommand;
-use calibration::CalibrationStage;
-use calibration::CALIBRATION_STATE;
-use calibration::START_CALIBRATION;
 use defmt::{debug, info};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 
+use calibration::{CalibrationCommand, CalibrationStage, CALIBRATION_STATE, START_CALIBRATION};
 use events::Events;
 use operation::OperationCommand;
 use operation::START_OPERATION;
@@ -64,6 +61,13 @@ pub enum ProgramStage {
     Calibration,
     Operation,
     Error,
+}
+
+impl ProgramStage {
+    pub async fn transition(&mut self, new_state: ProgramStage) {
+        let mut state = PROGRAM_STATE.lock().await;
+        *state = new_state;
+    }
 }
 
 impl Display for ProgramStage {

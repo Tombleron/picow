@@ -3,22 +3,21 @@
 use {defmt_rtt as _, panic_probe as _};
 
 mod adc;
+mod bluetooth;
 mod emg;
 mod filters;
-mod pwm;
 mod resources;
 mod serial;
 mod state;
-mod wifi;
 
 use adc::init_adc;
+use defmt::*;
 use embassy_executor::Spawner;
 use embassy_rp::{adc::Channel, gpio::Pull, uart};
-
 use embassy_time::Duration;
-use emg::{emg_reading_task, EMGSensor};
 
-use defmt::*;
+use emg::{emg_reading_task, EMGSensor};
+use resources::*;
 use state::{calibration::calibration_task, orchestrator, state_sender::state_sender_task};
 
 #[embassy_executor::main]
@@ -26,18 +25,20 @@ async fn main(spawner: Spawner) {
     info!("Starting up...");
     let p = embassy_rp::init(Default::default());
 
+    let r = split_resources!(p);
+
     let config = uart::Config::default();
     let uart = uart::Uart::new(
-        p.UART0,
-        p.PIN_0,
-        p.PIN_1,
+        r.uart.uart,
+        r.uart.tx,
+        r.uart.rx,
         serial::SerialInterrupts,
-        p.DMA_CH0,
-        p.DMA_CH1,
+        r.uart.dma_0,
+        r.uart.dma_1,
         config,
     );
 
-    let adc = init_adc(p.ADC);
+    let adc = init_adc(r.adc.adc);
 
     info!("Initializing EMG filters...");
     let emg1 = EMGSensor::new(Channel::new_pin(p.PIN_27, Pull::None));
@@ -59,4 +60,8 @@ async fn main(spawner: Spawner) {
     info!("Starting orchestrator...");
     unwrap!(spawner.spawn(orchestrator()));
     info!("Orchestrator task spawned!");
+
+    info!("Starting bluetooth...");
+    unwrap!(spawner.spawn(bluetooth::initialize_bluetooth(spawner, r.blt)));
+    info!("Bluetooth initialized!");
 }

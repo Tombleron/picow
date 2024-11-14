@@ -13,51 +13,59 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 embassy-embedded-hal = { version = "0.2.0", features = ["defmt"] }
 
-embassy-executor = { version = "0.6.0", features = [
+embassy-executor = { version = "0.6", default-features = false, features = [
+    "task-arena-size-98304",
     "arch-cortex-m",
     "executor-thread",
-    "executor-interrupt",
     "defmt",
     "integrated-timers",
-    "task-arena-size-98304",
+    "executor-interrupt",
 ] }
 
-embassy-futures = { version = "0.1.0" }
-embassy-sync = { version = "0.6.0", features = ["defmt"] }
-embassy-time = { version = "0.3.2", features = [
+embassy-futures = "0.1.1"
+embassy-sync = { version = "0.6", features = ["defmt"] }
+embassy-time = { version = "0.3.0", default-features = false, features = [
     "defmt",
     "defmt-timestamp-uptime",
 ] }
-
 embassy-rp = { version = "0.2.0", features = [
     "defmt",
     "unstable-pac",
     "time-driver",
     "critical-section-impl",
+    "rp2040",
 ] }
 
 pio-proc = "0.2.2"
 pio = "0.2.1"
-embassy-usb = { version = "0.3.0", features = ["defmt"] }
 portable-atomic = { version = "1.5", features = ["critical-section"] }
 log = "0.4"
 
-embassy-net = { version = "0.4.0", features = [
+cyw43 = { version = "0.2.0", features = [
     "defmt",
-    "tcp",
-    "udp",
-    "dns",
-    "dhcpv4",
-    "medium-ethernet",
+    "firmware-logs",
+    "bluetooth",
 ] }
-embassy-net-wiznet = { version = "0.1.0", features = ["defmt"] }
+cyw43-pio = { version = "0.2.0", features = ["defmt"] }
 
-
-cyw43 = { version = "0.2.0", features = ["defmt", "firmware-logs"] }
-cyw43-pio = { version = "0.2.0", features = ["defmt", "overclock"] }
 static_cell = { version = "2" }
 heapless = "0.8.0"
-assign-resources = "0.4.1"
+# assign-resources = "0.4.1"
+assign-resources = { git = "https://github.com/adamgreig/assign-resources", rev = "94ad10e2729afdf0fd5a77cd12e68409a982f58a" }
+bt-hci = { version = "0.1.1", features = ["defmt"] }
+trouble-host = { version = "0.1.0", features = ["defmt", "gatt"] }
+
+[patch.crates-io]
+trouble-host = { git = "https://github.com/embassy-rs/trouble.git", rev = "5e4ec6b644ef60a277aa3e4fbde6a02e9b551e42" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
+embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
+embassy-time-driver = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
+embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
+cyw43 = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
+cyw43-pio = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
 
 # cargo build/run
 [profile.dev]
