@@ -52,11 +52,12 @@ static_cell = { version = "2" }
 heapless = "0.8.0"
 # assign-resources = "0.4.1"
 assign-resources = { git = "https://github.com/adamgreig/assign-resources", rev = "94ad10e2729afdf0fd5a77cd12e68409a982f58a" }
-bt-hci = { version = "0.1.1", features = ["defmt"] }
+bt-hci = { version = "0.1.1", default-features = false, features = ["defmt"] }
 trouble-host = { version = "0.1.0", features = ["defmt", "gatt"] }
 
 [patch.crates-io]
-trouble-host = { git = "https://github.com/embassy-rs/trouble.git", rev = "5e4ec6b644ef60a277aa3e4fbde6a02e9b551e42" }
+# trouble-host = { git = "https://github.com/embassy-rs/trouble.git", rev = "5e4ec6b644ef60a277aa3e4fbde6a02e9b551e42" }
+trouble-host = { git = "https://github.com/embassy-rs/trouble.git" }
 embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
 embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }
 embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "d6a8dce6eef22564160bf25b20528b8b78ec63b8" }

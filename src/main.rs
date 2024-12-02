@@ -27,39 +27,39 @@ async fn main(spawner: Spawner) {
 
     let r = split_resources!(p);
 
-    let config = uart::Config::default();
-    let uart = uart::Uart::new(
-        r.uart.uart,
-        r.uart.tx,
-        r.uart.rx,
-        serial::SerialInterrupts,
-        r.uart.dma_0,
-        r.uart.dma_1,
-        config,
-    );
+    // let config = uart::Config::default();
+    // let uart = uart::Uart::new(
+    //     r.uart.uart,
+    //     r.uart.tx,
+    //     r.uart.rx,
+    //     serial::SerialInterrupts,
+    //     r.uart.dma_0,
+    //     r.uart.dma_1,
+    //     config,
+    // );
 
-    let adc = init_adc(r.adc.adc);
+    // let adc = init_adc(r.adc.adc);
 
     info!("Initializing EMG filters...");
-    let emg1 = EMGSensor::new(Channel::new_pin(p.PIN_27, Pull::None));
-    let emg2 = EMGSensor::new(Channel::new_pin(p.PIN_26, Pull::None));
+    // let emg1 = EMGSensor::new(Channel::new_pin(p.PIN_27, Pull::None));
+    // let emg2 = EMGSensor::new(Channel::new_pin(p.PIN_26, Pull::None));
     info!("EMG filters initialized!");
 
-    info!("Spawning EMG reading task...");
-    unwrap!(spawner.spawn(emg_reading_task(adc, emg1, emg2)));
-    info!("EMG reading task spawned!");
+    // info!("Spawning EMG reading task...");
+    // unwrap!(spawner.spawn(emg_reading_task(adc, emg1, emg2)));
+    // info!("EMG reading task spawned!");
 
-    info!("Spawning StateSender task...");
-    unwrap!(spawner.spawn(state_sender_task(Duration::from_millis(100), uart)));
-    info!("StateSender task spawned!");
+    // info!("Spawning StateSender task...");
+    // unwrap!(spawner.spawn(state_sender_task(Duration::from_millis(100), uart)));
+    // info!("StateSender task spawned!");
 
-    info!("Starting calibration...");
-    unwrap!(spawner.spawn(calibration_task()));
-    info!("Calibration task spawned!");
+    // info!("Starting calibration...");
+    // unwrap!(spawner.spawn(calibration_task()));
+    // info!("Calibration task spawned!");
 
-    info!("Starting orchestrator...");
-    unwrap!(spawner.spawn(orchestrator()));
-    info!("Orchestrator task spawned!");
+    // info!("Starting orchestrator...");
+    // unwrap!(spawner.spawn(orchestrator()));
+    // info!("Orchestrator task spawned!");
 
     info!("Starting bluetooth...");
     unwrap!(spawner.spawn(bluetooth::initialize_bluetooth(spawner, r.blt)));
