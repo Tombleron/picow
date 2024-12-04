@@ -1,19 +1,15 @@
-use bt_hci::{controller::ExternalController, WriteHci};
-use cyw43::{bluetooth::BtDriver, Control, NetDriver};
+use bt_hci::controller::ExternalController;
 use cyw43_pio::PioSpi;
-use defmt::{error, info, unwrap};
+use defmt::{info, unwrap};
 use embassy_executor::Spawner;
-use embassy_futures::{
-    join::join3,
-    select::{select, Either},
-};
+use embassy_futures::select::{select, Either};
 use embassy_rp::{
     bind_interrupts,
     gpio::{Level, Output},
     peripherals::{DMA_CH0, PIO0},
     pio::{self, Pio},
 };
-use embassy_time::{Duration, Timer};
+use embassy_time::Timer;
 use static_cell::StaticCell;
 use trouble_host::{prelude::*, Address, Controller, HostResources, PacketQos};
 

@@ -3,7 +3,7 @@
 use {defmt_rtt as _, panic_probe as _};
 
 mod adc;
-mod bluetooth;
+// mod bluetooth;
 mod commands;
 mod emg;
 mod filters;

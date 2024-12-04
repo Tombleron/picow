@@ -1,3 +1,4 @@
+pub mod command_dispatcher;
 mod define_command;
 use core::sync::atomic::Ordering;
 

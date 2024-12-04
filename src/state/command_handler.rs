@@ -1,6 +1,7 @@
 use embassy_futures::select::{select, Either};
-use embassy_rp::uart::{BufferedUart, BufferedUartTx};
+use embassy_rp::uart::BufferedUartTx;
 use embassy_rp::{peripherals::UART0, uart::BufferedUartRx};
+use embassy_sync::channel::Sender;
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, mutex::Mutex, signal::Signal,
 };
@@ -12,11 +13,11 @@ use crate::commands::{Packet, RequestId};
 pub static COMMAND_CHANNEL: Channel<CriticalSectionRawMutex, Packet, 10> = Channel::new();
 pub static RESPONSE_CHANNEL: Channel<CriticalSectionRawMutex, Packet, 10> = Channel::new();
 
-pub struct PendingRequests {
-    requests: FnvIndexMap<RequestId, Signal<CriticalSectionRawMutex, Packet>, 16>,
+pub struct PendingRequests<'a> {
+    pub requests: FnvIndexMap<RequestId, Sender<'a, CriticalSectionRawMutex, Packet, 1>, 16>,
 }
 
-impl PendingRequests {
+impl<'a> PendingRequests<'a> {
     pub const fn new() -> Self {
         Self {
             requests: FnvIndexMap::new(),
@@ -42,8 +43,8 @@ impl CommandSender {
 
     async fn handle_response(&mut self, packet: Packet) {
         let mut pending = PENDING_REQUESTS.lock().await;
-        if let Some(signal) = pending.requests.remove(&packet.request_id()) {
-            signal.signal(packet);
+        if let Some(sender) = pending.requests.remove(&packet.request_id()) {
+            sender.send(packet).await
         }
     }
 }

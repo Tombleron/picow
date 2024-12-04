@@ -3,18 +3,16 @@ pub mod command_handler;
 pub mod events;
 pub mod operation;
 
-use core::fmt::Display;
 
 use defmt::{debug, info};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 
-use calibration::{CalibrationCommand, CalibrationStage, CALIBRATION_STATE, START_CALIBRATION};
+use calibration::{CalibrationCommand, START_CALIBRATION};
 use events::Events;
 use operation::OperationCommand;
 use operation::START_OPERATION;
 
-use crate::emg::EmgSensorsState;
 
 #[derive(Copy, Clone)]
 pub enum ProgramStage {
