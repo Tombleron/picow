@@ -31,27 +31,27 @@ pub static CALIBRATION_STATE: CalibrationStateMutex =
 pub struct CalibrationCommand;
 pub static START_CALIBRATION: Signal<CriticalSectionRawMutex, CalibrationCommand> = Signal::new();
 
+async fn calibration() {
+    info!("Starting calibration");
+
+    let now = Instant::now();
+    *CALIBRATION_STATE.lock().await = CalibrationStage::WaitForZero(Some(now));
+
+    Timer::after_secs(3).await;
+
+    *CALIBRATION_STATE.lock().await = CalibrationStage::PeakCalibration(0, 0);
+
+    Timer::after_secs(5).await;
+
+    info!("Calibration finished");
+    EVENT_CHANNEL.send(Events::CalibrationFinished).await;
+}
+
 #[embassy_executor::task]
 pub async fn calibration_task() {
     loop {
         info!("Waiting for calibration start signal");
         START_CALIBRATION.wait().await;
-        info!("Starting calibration");
-
-        {
-            // Update state to WaitForZero with current time
-            let now = Instant::now();
-            *CALIBRATION_STATE.lock().await = CalibrationStage::WaitForZero(Some(now));
-
-            // Wait 5 seconds for device to return to zero position
-            Timer::after_secs(3).await;
-
-            *CALIBRATION_STATE.lock().await = CalibrationStage::PeakCalibration(0, 0);
-
-            Timer::after_secs(5).await;
-        }
-
-        info!("Calibration finished");
-        EVENT_CHANNEL.send(Events::CalibrationFinished).await;
+        calibration().await;
     }
 }

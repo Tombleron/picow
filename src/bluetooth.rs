@@ -34,7 +34,7 @@ async fn cyw43_task(
 /// Size of L2CAP packets (ATT MTU is this - 4)
 const L2CAP_MTU: usize = 251;
 /// Max number of connections
-const CONNECTIONS_MAX: usize = 2;
+const CONNECTIONS_MAX: usize = 1;
 /// Max number of L2CAP channels.
 const L2CAP_CHANNELS_MAX: usize = 2; // Signal + att
 const MAX_ATTRIBUTES: usize = 10;
@@ -98,7 +98,7 @@ pub async fn initialize_bluetooth(spawner: Spawner, p: BltResources) -> () {
         stack,
         GapConfig::Peripheral(PeripheralConfig {
             name: "TrouBLE",
-            appearance: &appearance::power_device::GENERIC_POWER_DEVICE,
+            appearance: &appearance::GENERIC_POWER,
         }),
     )
     .unwrap();
@@ -114,7 +114,7 @@ pub async fn initialize_bluetooth(spawner: Spawner, p: BltResources) -> () {
                     // let counter_task = counter_task(&server, &conn);
                     // run until any task ends (usually because the connection has been closed),
                     // then return to advertising state.
-                    connection_task.await;
+                    // connection_task.await;
                 }
                 Err(e) => {
                     info!("Error advertising: {:?}", e);
@@ -155,7 +155,12 @@ async fn ble_task<C: Controller>(mut runner: Runner<'_, C>) -> Result<(), BleHos
 async fn gatt_task<C: Controller>(
     server: &Server<'_, '_, C>,
 ) -> Result<(), BleHostError<C::Error>> {
-    server.run().await
+    loop {
+        match server.next().await {
+            Ok(_) => {}
+            Err(_) => {}
+        }
+    }
 }
 
 /// Example task to use the BLE notifier interface.
@@ -173,34 +178,34 @@ async fn counter_task<C: Controller>(server: &Server<'_, '_, C>, conn: &Connecti
     }
 }
 
-/// Stream Events until the connection closes.
 async fn conn_task<C: Controller>(
     server: &Server<'_, '_, C>,
     conn: &Connection<'_>,
 ) -> Result<(), BleHostError<C::Error>> {
     let level = server.battery_service.level;
-    loop {
-        match conn.next().await {
-            ConnectionEvent::Disconnected { reason } => {
-                info!("[gatt] disconnected: {:?}", reason);
-                break;
-            }
-            ConnectionEvent::Gatt { event, .. } => match event {
-                GattEvent::Read { value_handle } => {
-                    if value_handle == level.handle {
-                        let value = server.get(&level);
-                        info!("[gatt] Read Event to Level Characteristic: {:?}", value);
-                    }
-                }
-                GattEvent::Write { value_handle } => {
-                    if value_handle == level.handle {
-                        let value = server.get(&level);
-                        info!("[gatt] Write Event to Level Characteristic: {:?}", value);
-                    }
-                }
-            },
-        }
-    }
+    while conn.is_connected() {}
+    // loop {
+    // match conn.next().await {
+    //     ConnectionEvent::Disconnected { reason } => {
+    //         info!("[gatt] disconnected: {:?}", reason);
+    //         break;
+    //     }
+    //     ConnectionEvent::Gatt { event, .. } => match event {
+    //         GattEvent::Read { value_handle } => {
+    //             if value_handle == level.handle {
+    //                 let value = server.get(&level);
+    //                 info!("[gatt] Read Event to Level Characteristic: {:?}", value);
+    //             }
+    //         }
+    //         GattEvent::Write { value_handle } => {
+    //             if value_handle == level.handle {
+    //                 let value = server.get(&level);
+    //                 info!("[gatt] Write Event to Level Characteristic: {:?}", value);
+    //             }
+    //         }
+    //     },
+    // }
+    // }
     info!("[gatt] task finished");
     Ok(())
 }
