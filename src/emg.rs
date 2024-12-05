@@ -26,7 +26,7 @@ pub async fn emg_reading_task(
 
         let emg1_data = emg1.read(&mut adc).await.unwrap();
         let emg2_data = emg2.read(&mut adc).await.unwrap();
-        info!("Emg1: {}, Emg2: {}", emg1_data, emg2_data);
+        // info!("Emg1: {}, Emg2: {}", emg1_data, emg2_data);
 
         EMG1_VALUE.store(emg1_data, Ordering::Relaxed);
         EMG2_VALUE.store(emg2_data, Ordering::Relaxed);

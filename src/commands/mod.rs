@@ -1,31 +1,39 @@
-pub mod command_dispatcher;
 mod define_command;
 use core::sync::atomic::Ordering;
 
 use define_command::define_commands;
+use defmt::Format;
 use portable_atomic::AtomicU16;
 
 define_commands! {
     /// Sets minimum and maximum positions for each finger joint
     /// Payload: 24 bytes (2 bytes per axis)
     SetPosition = 0x01, 24,
+    /// Requests the current position of each finger joint
+    RequestPosition = 0x02, 0,
+    /// Current position of each finger joint
+    /// Payload: 24 bytes (2 bytes per axis)
+    ResponsePosition = 0x03, 24,
 
-    /// Retrieves sensor data from all sensors
+
+    /// Request sensor data from all sensors
+    RequestSensors = 0x04, 0,
+    /// Sensor data from all sensors
     /// Payload: 18 bytes (2 bytes per sensor value)
     /// Contains: 3 pressure sensors, 6 position sensors
-    GetSensors = 0x02, 18,
+    ResponseSensors = 0x05, 18,
 
     /// Start motion (opening/closing)
     /// Payload: 1 byte (0 for close, 1 for open)
-    StartMotion = 0x03, 1,
+    StartMotion = 0x06, 1,
 
     /// Stop current motion
     /// Payload: None
-    StopMotion = 0x04, 0,
+    StopMotion = 0x07, 0,
 
     /// Set motion speed
     /// Payload: 2 bytes (speed value 0-65535)
-    SetSpeed = 0x05, 2,
+    SetSpeed = 0x08, 2,
 
     /// Service and Configuration Commands
     GetDeviceInfo = 0x10, 0,
@@ -34,11 +42,11 @@ define_commands! {
 
 #[derive(Debug)]
 pub struct Packet {
-    command: CommandType,
-    request_id: RequestId,
-    length: u8,
-    payload: [u8; 32],
-    crc: u16,
+    pub command: CommandType,
+    pub request_id: RequestId,
+    pub length: u8,
+    pub payload: [u8; 32],
+    pub crc: u16,
 }
 
 impl Packet {
@@ -117,6 +125,20 @@ impl Packet {
     }
 }
 
+impl Format for Packet {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "Packet {{ command: {:?}, request_id: {:?}, length: {:?}, payload: {:?}, crc: {:?} }}",
+            self.command,
+            self.request_id,
+            self.length,
+            self.payload,
+            self.crc
+        )
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct RequestId(pub u16);
 
@@ -124,5 +146,11 @@ impl RequestId {
     pub fn new() -> Self {
         static NEXT_ID: AtomicU16 = AtomicU16::new(0);
         RequestId(NEXT_ID.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+impl Format for RequestId {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(fmt, "{:?}", self.0)
     }
 }

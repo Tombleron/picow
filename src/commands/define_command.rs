@@ -36,6 +36,16 @@ macro_rules! define_commands {
                 }
             }
         }
+
+        impl defmt::Format for CommandType {
+            fn format(&self, fmt: defmt::Formatter) {
+                match self {
+                    $(
+                        Self::$name => defmt::write!(fmt, "{}", stringify!($name)),
+                    )*
+                }
+            }
+        }
     };
 }
 

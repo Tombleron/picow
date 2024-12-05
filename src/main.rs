@@ -21,6 +21,7 @@ use resources::*;
 use state::{
     calibration::calibration_task,
     command_handler::{command_handler_task, response_reader_task},
+    operation::operation_task,
     orchestrator,
 };
 
@@ -45,9 +46,13 @@ async fn main(spawner: Spawner) {
     unwrap!(spawner.spawn(emg_reading_task(adc, emg1, emg2)));
     info!("EMG reading task spawned!");
 
-    info!("Starting calibration...");
+    info!("Starting calibration task...");
     unwrap!(spawner.spawn(calibration_task()));
     info!("Calibration task spawned!");
+
+    info!("Starting operation task...");
+    unwrap!(spawner.spawn(operation_task()));
+    info!("Operation task spawned!");
 
     info!("Starting orchestrator...");
     unwrap!(spawner.spawn(orchestrator()));
