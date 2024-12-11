@@ -17,9 +17,8 @@ pub async fn operation_task() {
         info!("Operation signal received");
 
         loop {
-            let packet = Packet::new(CommandType::RequestSensors);
+            // Packet::new(CommandType::RequestSensors).send().await;
 
-            COMMAND_CHANNEL.send(packet).await;
             embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
         }
     }

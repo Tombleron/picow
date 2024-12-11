@@ -3,7 +3,7 @@
 use {defmt_rtt as _, panic_probe as _};
 
 mod adc;
-// mod bluetooth;
+mod bluetooth;
 mod commands;
 mod emg;
 mod filters;
@@ -65,7 +65,8 @@ async fn main(spawner: Spawner) {
     info!("Starting response reader...");
     unwrap!(spawner.spawn(response_reader_task(rx)));
     info!("Response reader started!");
-    // info!("Starting bluetooth...");
-    // unwrap!(spawner.spawn(bluetooth::initialize_bluetooth(spawner, r.blt)));
-    // info!("Bluetooth initialized!");
+
+    info!("Starting bluetooth...");
+    unwrap!(spawner.spawn(bluetooth::initialize_bluetooth(spawner, r.blt)));
+    info!("Bluetooth initialized!");
 }

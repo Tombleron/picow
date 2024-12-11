@@ -1,3 +1,5 @@
+use core::sync::atomic::Ordering;
+
 use bt_hci::controller::ExternalController;
 use cyw43_pio::PioSpi;
 use defmt::{info, unwrap};
@@ -13,7 +15,10 @@ use embassy_time::Timer;
 use static_cell::StaticCell;
 use trouble_host::{prelude::*, Address, Controller, HostResources, PacketQos};
 
-use crate::resources::BltResources;
+use crate::{
+    emg::{EMG1_VALUE, EMG2_VALUE},
+    resources::BltResources,
+};
 
 bind_interrupts!(struct BltIrqs {
     PIO0_IRQ_0 => pio::InterruptHandler<PIO0>;
@@ -36,28 +41,99 @@ const L2CAP_CHANNELS_MAX: usize = 2; // Signal + att
 const MAX_ATTRIBUTES: usize = 10;
 type Resources<C> = HostResources<C, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX, L2CAP_MTU>;
 
-// Battery service
-#[gatt_service(uuid = "180f")]
-struct BatteryService {
-    #[characteristic(uuid = "2a19", read, write, notify, on_read = battery_level_on_read, on_write = battery_level_on_write)]
-    level: u8,
+// Define the service for prosthetic arm
+#[gatt_service(uuid = "1815")]
+struct ProstheticArmService {
+    #[characteristic(uuid = "2A58", read, notify)]
+    erm_sensor_1: u16,
+
+    #[characteristic(uuid = "2A59", read, notify)]
+    erm_sensor_2: u16,
+
+    #[characteristic(uuid = "7345", read, write)]
+    sensitivity_min_1: u16,
+
+    #[characteristic(uuid = "7346", read, write)]
+    sensitivity_max_1: u16,
+
+    #[characteristic(uuid = "7347", read, write)]
+    sensitivity_min_2: u16,
+
+    #[characteristic(uuid = "7348", read, write)]
+    sensitivity_max_2: u16,
 }
 
-fn battery_level_on_read(_connection: &Connection) {
-    info!("[gatt] Read event on battery level characteristic");
+fn erm_sensor_1_on_read(_connection: &Connection) {
+    info!("[gatt] Read event on ERM sensor 1");
 }
 
-fn battery_level_on_write(_connection: &Connection, data: &[u8]) -> Result<(), ()> {
-    info!(
-        "[gatt] Write event on battery level characteristic: {:?}",
-        data
-    );
-    Ok(())
+fn erm_sensor_2_on_read(_connection: &Connection) {
+    info!("[gatt] Read event on ERM sensor 2");
+}
+
+fn sensitivity_min_1_on_read(_connection: &Connection) {
+    info!("[gatt] Read event on sensitivity minimum 1");
+}
+
+fn sensitivity_min_1_on_write(_connection: &Connection, data: &[u8]) -> Result<(), ()> {
+    if data.len() == 2 {
+        let value = u16::from_le_bytes([data[0], data[1]]);
+        info!("[gatt] New sensitivity minimum 1: {}", value);
+        Ok(())
+    } else {
+        info!("[gatt] Invalid sensitivity minimum 1 data");
+        Err(())
+    }
+}
+
+fn sensitivity_max_1_on_read(_connection: &Connection) {
+    info!("[gatt] Read event on sensitivity maximum 1");
+}
+
+fn sensitivity_max_1_on_write(_connection: &Connection, data: &[u8]) -> Result<(), ()> {
+    if data.len() == 2 {
+        let value = u16::from_le_bytes([data[0], data[1]]);
+        info!("[gatt] New sensitivity maximum 1: {}", value);
+        Ok(())
+    } else {
+        info!("[gatt] Invalid sensitivity maximum 1 data");
+        Err(())
+    }
+}
+
+fn sensitivity_min_2_on_read(_connection: &Connection) {
+    info!("[gatt] Read event on sensitivity minimum 2");
+}
+
+fn sensitivity_min_2_on_write(_connection: &Connection, data: &[u8]) -> Result<(), ()> {
+    if data.len() == 2 {
+        let value = u16::from_le_bytes([data[0], data[1]]);
+        info!("[gatt] New sensitivity minimum 2: {}", value);
+        Ok(())
+    } else {
+        info!("[gatt] Invalid sensitivity minimum 2 data");
+        Err(())
+    }
+}
+
+fn sensitivity_max_2_on_read(_connection: &Connection) {
+    info!("[gatt] Read event on sensitivity maximum 2");
+}
+
+fn sensitivity_max_2_on_write(_connection: &Connection, data: &[u8]) -> Result<(), ()> {
+    if data.len() == 2 {
+        let value = u16::from_le_bytes([data[0], data[1]]);
+        info!("[gatt] New sensitivity maximum 2: {}", value);
+        Ok(())
+    } else {
+        info!("[gatt] Invalid sensitivity maximum 2 data");
+        Err(())
+    }
 }
 
 #[gatt_server]
 struct Server {
-    battery_service: BatteryService,
+    prosthetic_arm_service: ProstheticArmService,
 }
 
 #[embassy_executor::task]
@@ -72,8 +148,8 @@ pub async fn initialize_bluetooth(spawner: Spawner, p: BltResources) -> () {
     let mut pio = Pio::new(p.pio, BltIrqs);
     let spi = PioSpi::new(&mut pio.common, pio.sm0, pio.irq0, cs, p.dio, p.clk, p.dma);
 
-    static STATE: StaticCell<cyw43::State> = StaticCell::new(); // Static means it stays in memory for the lifetime of the program
-    let state = STATE.init(cyw43::State::new()); // Initialize the state
+    static STATE: StaticCell<cyw43::State> = StaticCell::new();
+    let state = STATE.init(cyw43::State::new());
 
     let (_net_device, bt_device, mut control, runner) =
         cyw43::new_with_bluetooth(state, pwr, spi, fw, btfw).await;
@@ -93,8 +169,8 @@ pub async fn initialize_bluetooth(spawner: Spawner, p: BltResources) -> () {
     let server = Server::new_with_config(
         stack,
         GapConfig::Peripheral(PeripheralConfig {
-            name: "TrouBLE",
-            appearance: &appearance::GENERIC_POWER,
+            name: "ProstheticArm",
+            appearance: &appearance::power_device::GENERIC_POWER_DEVICE,
         }),
     )
     .unwrap();
@@ -103,14 +179,11 @@ pub async fn initialize_bluetooth(spawner: Spawner, p: BltResources) -> () {
 
     let app_task = async {
         loop {
-            match advertise("Trouble Example", &mut peripheral).await {
+            match advertise("ProstheticArm", &mut peripheral).await {
                 Ok(conn) => {
-                    // set up tasks when the connection is established to a central, so they don't run when no one is connected.
                     let connection_task = conn_task(&server, &conn);
-                    // let counter_task = counter_task(&server, &conn);
-                    // run until any task ends (usually because the connection has been closed),
-                    // then return to advertising state.
-                    // connection_task.await;
+                    let sensor_task = sensor_update_task(&server, &conn);
+                    select(connection_task, sensor_task).await;
                 }
                 Err(e) => {
                     info!("Error advertising: {:?}", e);
@@ -121,56 +194,46 @@ pub async fn initialize_bluetooth(spawner: Spawner, p: BltResources) -> () {
     };
 
     info!("Starting advertising and GATT service");
-    let a = select(ble_background_task, app_task).await;
-    match a {
-        Either::First(anime) => {
-            info!("ble_background_task finished");
-        }
-        Either::Second(_) => {
-            info!("app_task finished");
-        }
-    }
+    select(ble_background_task, app_task).await;
 }
 
 async fn ble_task<C: Controller>(mut runner: Runner<'_, C>) -> Result<(), BleHostError<C::Error>> {
-    let a = runner.run().await;
-    match &a {
-        Ok(_) => {}
-        Err(e) => match e {
-            BleHostError::Controller(e) => {
-                info!("ble controller error")
-            }
-            BleHostError::BleHost(error) => {
-                info!("BleHostError: {:?}", error);
-            }
-        },
+    loop {
+        if let Err(_e) = runner.run().await {
+            let _e = defmt::Debug2Format(&_e);
+        }
     }
-    a
 }
 
 async fn gatt_task<C: Controller>(
     server: &Server<'_, '_, C>,
 ) -> Result<(), BleHostError<C::Error>> {
     loop {
-        match server.next().await {
-            Ok(_) => {}
-            Err(_) => {}
+        if let Err(_e) = server.run().await {
+            let _e = defmt::Debug2Format(&_e);
         }
     }
 }
 
-/// Example task to use the BLE notifier interface.
-async fn counter_task<C: Controller>(server: &Server<'_, '_, C>, conn: &Connection<'_>) {
-    let mut tick: u8 = 0;
-    let level = server.battery_service.level;
+async fn sensor_update_task<C: Controller>(server: &Server<'_, '_, C>, conn: &Connection<'_>) {
+    let erm1 = server.prosthetic_arm_service.erm_sensor_1;
+    let erm2 = server.prosthetic_arm_service.erm_sensor_2;
+
     loop {
-        tick = tick.wrapping_add(1);
-        info!("[adv] notifying connection of tick {}", tick);
-        if server.notify(&level, conn, &tick).await.is_err() {
-            info!("[adv] error notifying connection");
+        let sensor1_value: u16 = EMG1_VALUE.load(Ordering::Relaxed) as u16;
+        let sensor2_value: u16 = EMG2_VALUE.load(Ordering::Relaxed) as u16;
+
+        if server.notify(&erm1, conn, &sensor1_value).await.is_err() {
+            info!("[adv] error notifying ERM1 value");
             break;
-        };
-        Timer::after_secs(2).await;
+        }
+
+        if server.notify(&erm2, conn, &sensor2_value).await.is_err() {
+            info!("[adv] error notifying ERM2 value");
+            break;
+        }
+
+        Timer::after_millis(100).await;
     }
 }
 
@@ -178,35 +241,63 @@ async fn conn_task<C: Controller>(
     server: &Server<'_, '_, C>,
     conn: &Connection<'_>,
 ) -> Result<(), BleHostError<C::Error>> {
-    let level = server.battery_service.level;
-    while conn.is_connected() {}
-    // loop {
-    // match conn.next().await {
-    //     ConnectionEvent::Disconnected { reason } => {
-    //         info!("[gatt] disconnected: {:?}", reason);
-    //         break;
-    //     }
-    //     ConnectionEvent::Gatt { event, .. } => match event {
-    //         GattEvent::Read { value_handle } => {
-    //             if value_handle == level.handle {
-    //                 let value = server.get(&level);
-    //                 info!("[gatt] Read Event to Level Characteristic: {:?}", value);
-    //             }
-    //         }
-    //         GattEvent::Write { value_handle } => {
-    //             if value_handle == level.handle {
-    //                 let value = server.get(&level);
-    //                 info!("[gatt] Write Event to Level Characteristic: {:?}", value);
-    //             }
-    //         }
-    //     },
-    // }
-    // }
+    let erm1 = server.prosthetic_arm_service.erm_sensor_1;
+    let erm2 = server.prosthetic_arm_service.erm_sensor_2;
+    let sens_min1 = server.prosthetic_arm_service.sensitivity_min_1;
+    let sens_max1 = server.prosthetic_arm_service.sensitivity_max_1;
+    let sens_min2 = server.prosthetic_arm_service.sensitivity_min_2;
+    let sens_max2 = server.prosthetic_arm_service.sensitivity_max_2;
+
+    loop {
+        match conn.next().await {
+            ConnectionEvent::Disconnected { reason } => {
+                info!("[gatt] disconnected: {:?}", reason);
+                break;
+            }
+            ConnectionEvent::Gatt { event, .. } => match event {
+                GattEvent::Read { value_handle } => {
+                    if value_handle == erm1.handle {
+                        let value = server.get(&erm1);
+                        info!("[gatt] Read ERM1 value: {:?}", value);
+                    } else if value_handle == erm2.handle {
+                        let value = server.get(&erm2);
+                        info!("[gatt] Read ERM2 value: {:?}", value);
+                    } else if value_handle == sens_min1.handle {
+                        let value = server.get(&sens_min1);
+                        info!("[gatt] Read sensitivity min 1: {:?}", value);
+                    } else if value_handle == sens_max1.handle {
+                        let value = server.get(&sens_max1);
+                        info!("[gatt] Read sensitivity max 1: {:?}", value);
+                    } else if value_handle == sens_min2.handle {
+                        let value = server.get(&sens_min2);
+                        info!("[gatt] Read sensitivity min 2: {:?}", value);
+                    } else if value_handle == sens_max2.handle {
+                        let value = server.get(&sens_max2);
+                        info!("[gatt] Read sensitivity max 2: {:?}", value);
+                    }
+                }
+                GattEvent::Write { value_handle } => {
+                    if value_handle == sens_min1.handle {
+                        let value = server.get(&sens_min1);
+                        info!("[gatt] New sensitivity min 1: {:?}", value);
+                    } else if value_handle == sens_max1.handle {
+                        let value = server.get(&sens_max1);
+                        info!("[gatt] New sensitivity max 1: {:?}", value);
+                    } else if value_handle == sens_min2.handle {
+                        let value = server.get(&sens_min2);
+                        info!("[gatt] New sensitivity min 2: {:?}", value);
+                    } else if value_handle == sens_max2.handle {
+                        let value = server.get(&sens_max2);
+                        info!("[gatt] New sensitivity max 2: {:?}", value);
+                    }
+                }
+            },
+        }
+    }
     info!("[gatt] task finished");
     Ok(())
 }
 
-/// Create an advertiser to use to connect to a BLE Central, and wait for it to connect.
 async fn advertise<'a, C: Controller>(
     name: &'a str,
     peripheral: &mut Peripheral<'a, C>,
@@ -215,12 +306,12 @@ async fn advertise<'a, C: Controller>(
     AdStructure::encode_slice(
         &[
             AdStructure::Flags(LE_GENERAL_DISCOVERABLE | BR_EDR_NOT_SUPPORTED),
-            AdStructure::ServiceUuids16(&[Uuid::Uuid16([0x0f, 0x18])]),
+            AdStructure::ServiceUuids16(&[Uuid::Uuid16([0x15, 0x18])]),
             AdStructure::CompleteLocalName(name.as_bytes()),
         ],
         &mut advertiser_data[..],
     )?;
-    let mut advertiser = peripheral
+    let advertiser = peripheral
         .advertise(
             &Default::default(),
             Advertisement::ConnectableScannableUndirected {

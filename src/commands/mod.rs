@@ -5,6 +5,8 @@ use define_command::define_commands;
 use defmt::Format;
 use portable_atomic::AtomicU16;
 
+use crate::state::command_handler::COMMAND_CHANNEL;
+
 define_commands! {
     /// Sets minimum and maximum positions for each finger joint
     /// Payload: 24 bytes (2 bytes per axis)
@@ -122,6 +124,10 @@ impl Packet {
         data[4..].copy_from_slice(&self.payload);
 
         crc16::State::<crc16::CCITT_FALSE>::calculate(&data[..self.length as usize + 4])
+    }
+
+    pub async fn send(self) {
+        COMMAND_CHANNEL.send(self).await
     }
 }
 
